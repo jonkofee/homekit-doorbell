@@ -1,9 +1,10 @@
 'use strict'
 const hap = require('hap-nodejs')
 const CameraAccessory = require('./CameraAccessory')(hap, hap.Accessory, console.log)
+const LockAccessory = require('./LockAccessory')(hap, hap.Accessory, console.log)
 
 let conf = {
-    username: 'EC:23:32:D3:CE:07',
+    username: 'EC:23:22:D3:CE:07',
     pincode: '031-45-150',
     debug: true
 };
@@ -14,7 +15,8 @@ hap.init()
 
 const bridge = new hap.Bridge('Node Bridge', hap.uuid.generate("Node Bridge"));
 
-bridge.addBridgedAccessory(new CameraAccessory());
+bridge.addBridgedAccessory(new CameraAccessory())
+bridge.addBridgedAccessory(new LockAccessory())
 
 bridge.publish({
   username: conf.username,
