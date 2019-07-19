@@ -3,6 +3,8 @@ const hap = require('hap-nodejs')
 const CameraAccessory = require('./CameraAccessory')(hap, hap.Accessory, console.log)
 
 let conf = {
+    id: 12315235,
+    name: 'Pi Camera',
     username: 'EC:23:3D:D3:CE:01',
     pincode: '031-45-150',
     debug: true
@@ -20,9 +22,4 @@ cameraAccessory.publish({
   category: hap.Accessory.Categories.CAMERA
 }, true)
 
-console.log('Scan this code with your HomeKit App on your iOS device to pair with Camera:')
-console.log('                       ')
-console.log('    ┌────────────┐     ')
-console.log(`    │ ${conf.pincode} │     `)
-console.log('    └────────────┘     ')
-console.log('                       ')
+console.log('Pincode: ' + conf.pincode)

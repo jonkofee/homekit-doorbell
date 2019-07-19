@@ -7,17 +7,7 @@ var crypto = require('crypto')
 module.exports = Camera
 
 function Camera (hap, conf, log) {
-  this.hap = hap
-  this.conf = conf
-  this.log = log
-  this.services = []
-  this.streamControllers = []
-  this.debug = conf.debug === true
-
-  this.pendingSessions = {}
-  this.ongoingSessions = {}
-
-  let options = {
+  const options = {
     proxy: false, // Requires RTP/RTCP MUX Proxy
     disable_audio_proxy: false, // If proxy = true, you can opt out audio proxy via this
     srtp: true, // Supports SRTP AES_CM_128_HMAC_SHA1_80 encryption
@@ -54,6 +44,15 @@ function Camera (hap, conf, log) {
       ]
     }
   }
+  this.hap = hap
+  this.conf = conf
+  this.log = log
+  this.services = []
+  this.streamControllers = []
+  this.debug = conf.debug
+  this.pendingSessions = {}
+  this.ongoingSessions = {}
+
   this._v4l2CTLSetCTRL('rotate', this.conf.rotate || 0)
   this._v4l2CTLSetCTRL('vertical_flip', this.conf.verticalFlip ? 1 : 0)
   this._v4l2CTLSetCTRL('horizontal_flip', this.conf.horizontalFlip ? 1 : 0)
@@ -209,46 +208,40 @@ Camera.prototype._handleStartStream = function(request) {
     return false
   }
 
-  var width = 1280
-  var height = 720
-  var fps = 30
-  var bitrate = 300
-
-  if (request['video']) {
-    width = request['video']['width']
-    height = request['video']['height']
-    fps = Math.min(fps, request['video']['fps']) // TODO define max fps
-    bitrate = request['video']['max_bit_rate']
-  }
+  const width = request['video']['width']
+  const height = request['video']['height']
+  const fps = request['video']['fps']
+  const bitrate = request['video']['max_bit_rate']
+  const srtp = this.pendingSessions[sessionIdentifier]['video_srtp'].toString('base64')
+  const address = this.pendingSessions[sessionIdentifier]['address']
+  const port = this.pendingSessions[sessionIdentifier]['video_port']
+  const ssrc = this.pendingSessions[sessionIdentifier]['video_ssrc']
 
   this._v4l2CTLSetCTRL('video_bitrate', `${bitrate}000`)
 
-  let srtp = this.pendingSessions[sessionIdentifier]['video_srtp'].toString('base64')
-  let address = this.pendingSessions[sessionIdentifier]['address']
-  let port = this.pendingSessions[sessionIdentifier]['video_port']
-  let ssrc = this.pendingSessions[sessionIdentifier]['video_ssrc']
-
   this.log(`Starting video stream (${width}x${height}, ${fps} fps, ${bitrate} kbps)`)
-  let ffmpegCommand = `\
--f video4linux2 -input_format h264 -video_size ${width}x${height} -framerate ${fps} -i /dev/video0 \
--vcodec h264_omx -an -payload_type 99 -ssrc ${ssrc} -f rtp \
--srtp_out_suite AES_CM_128_HMAC_SHA1_80 -srtp_out_params ${srtp} \
-srtp://${address}:${port}?rtcpport=${port}&localrtcpport=${port}&pkt_size=1378`
+
+  let ffmpegCommand = `-f video4linux2 -input_format h264 -video_size ${width}x${height} -framerate ${fps} -i /dev/video0 -vcodec h264_omx -an -payload_type 99 -ssrc ${ssrc} -f rtp -srtp_out_suite AES_CM_128_HMAC_SHA1_80 -srtp_out_params ${srtp} srtp://${address}:${port}?rtcpport=${port}&localrtcpport=${port}&pkt_size=1378`
+
   if (this.debug) {
     console.log('ffmpeg', ffmpegCommand)
   }
+
   let ffmpeg = spawn('ffmpeg', ffmpegCommand.split(' '), { env: process.env })
+
   ffmpeg.stderr.on('data', data => {
     if (this.debug) {
       console.log(String(data))
     }
   })
+
   ffmpeg.on('error', error => {
     this.log('Failed to start video stream')
     if (this.debug) {
       console.log('Error:', error.message)
     }
   })
+
   ffmpeg.on('close', code => {
     if (!code || code === 255) {
       this.log('Video stream stopped')
@@ -256,10 +249,10 @@ srtp://${address}:${port}?rtcpport=${port}&localrtcpport=${port}&pkt_size=1378`
       this.log(`ffmpeg exited with code ${code}`)
     }
   })
+
   this.ongoingSessions[sessionIdentifier] = ffmpeg
 
   delete this.pendingSessions[sessionIdentifier]
-
 }
 
 Camera.prototype._handleStopStream = function(request) {
