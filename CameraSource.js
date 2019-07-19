@@ -97,88 +97,59 @@ Camera.prototype.handleCloseConnection = function (connectionID) {
 }
 
 Camera.prototype.prepareStream = function (request, callback) {
-  // Invoked when iOS device requires stream
+  let response = {
+      address: {
+          address: ip.address(),
+          type: ip.isV4Format(ip.address()) ? 'v4' : 'v6'
+      }
+  }
+  let sessionInfo = {
+      address: request['targetAddress']
+  }
 
-  var sessionInfo = {}
-
-  let sessionID = request['sessionID']
-  let targetAddress = request['targetAddress']
-
-  sessionInfo['address'] = targetAddress
-
-  var response = {}
-
-  let videoInfo = request['video']
-  if (videoInfo) {
-    let targetPort = videoInfo['port']
-    let srtpKey = videoInfo['srtp_key']
-    let srtpSalt = videoInfo['srtp_salt']
-
+  if (request['video']) {
     // SSRC is a 32 bit integer that is unique per stream
     let ssrcSource = crypto.randomBytes(4)
     ssrcSource[0] = 0
-    let ssrc = ssrcSource.readInt32BE(0, true)
 
-    let videoResp = {
-      port: targetPort,
-      ssrc: ssrc,
-      srtp_key: srtpKey,
-      srtp_salt: srtpSalt
+    response.video = {
+        port: request['video']['port'],
+        ssrc: ssrcSource.readInt32BE(0, true),
+        srtp_key: request['video']['srtp_key'],
+        srtp_salt: request['video']['srtp_salt']
     }
 
-    response['video'] = videoResp
-
-    sessionInfo['video_port'] = targetPort
-    sessionInfo['video_srtp'] = Buffer.concat([srtpKey, srtpSalt])
-    sessionInfo['video_ssrc'] = ssrc
+    sessionInfo['video_port'] = response.video.port
+    sessionInfo['video_srtp'] = Buffer.concat([response.video.srtp_key, response.video.srtp_salt])
+    sessionInfo['video_ssrc'] = response.video.ssrc
   }
 
-  let audioInfo = request['audio']
-  if (audioInfo) {
-    let targetPort = audioInfo['port']
-    let srtpKey = audioInfo['srtp_key']
-    let srtpSalt = audioInfo['srtp_salt']
-
+  if (request['audio']) {
     // SSRC is a 32 bit integer that is unique per stream
     let ssrcSource = crypto.randomBytes(4)
     ssrcSource[0] = 0
-    let ssrc = ssrcSource.readInt32BE(0, true)
 
-    let audioResp = {
-      port: targetPort,
-      ssrc: ssrc,
-      srtp_key: srtpKey,
-      srtp_salt: srtpSalt
+    response.audio = {
+        port: request['audio']['port'],
+        ssrc: ssrcSource.readInt32BE(0, true),
+        srtp_key: request['audio']['srtp_key'],
+        srtp_salt: request['audio']['srtp_salt']
     }
 
-    response['audio'] = audioResp
-
-    sessionInfo['audio_port'] = targetPort
-    sessionInfo['audio_srtp'] = Buffer.concat([srtpKey, srtpSalt])
-    sessionInfo['audio_ssrc'] = ssrc
+    sessionInfo['audio_port'] = response.audio.port
+    sessionInfo['audio_srtp'] = Buffer.concat([response.audio.srtp_key, response.audio.srtp_salt])
+    sessionInfo['audio_ssrc'] = response.audio.ssrc
   }
 
-  let currentAddress = ip.address()
-  var addressResp = {
-    address: currentAddress
-  }
-
-  if (ip.isV4Format(currentAddress)) {
-    addressResp['type'] = 'v4'
-  } else {
-    addressResp['type'] = 'v6'
-  }
-
-  response['address'] = addressResp
-  this.pendingSessions[this.hap.uuid.unparse(sessionID)] = sessionInfo
+  this.pendingSessions[this.hap.uuid.unparse(request['sessionID'])] = sessionInfo
 
   callback(response)
 }
 
 Camera.prototype.handleStreamRequest = function (request) {
-console.log(request) 
+console.log(request)
 
- var sessionID = request['sessionID']
+  var sessionID = request['sessionID']
   var requestType = request['type']
   if (!sessionID) return
   let sessionIdentifier = this.hap.uuid.unparse(sessionID)

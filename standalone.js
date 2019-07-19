@@ -1,10 +1,9 @@
 'use strict'
-const minimist = require('minimist')
 const hap = require('hap-nodejs')
 const CameraAccessory = require('./CameraAccessory')(hap, hap.Accessory, console.log)
 
 let conf = {
-    username: 'EC:23:3D:D3:CE:00',
+    username: 'EC:23:3D:D3:CE:01',
     pincode: '031-45-150',
     debug: true
 };
