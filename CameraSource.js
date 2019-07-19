@@ -23,12 +23,12 @@ function Camera (hap, conf, log) {
     srtp: true, // Supports SRTP AES_CM_128_HMAC_SHA1_80 encryption
     video: {
       resolutions: [
-        // [1920, 1080, 30], // Width, Height, framerate
-        // [1280, 960, 30],
+        [1920, 1080, 30], // Width, Height, framerate
+        [1280, 960, 30],
         [1280, 720, 60],
-        [1024, 768, 30],
-        [640, 480, 30],
-        [640, 360, 30],
+        [1024, 768, 60],
+        [640, 480, 60],
+        [640, 360, 60],
         [480, 360, 30],
         [480, 270, 30],
         [320, 240, 30],
