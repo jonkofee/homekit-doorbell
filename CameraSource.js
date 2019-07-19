@@ -147,68 +147,19 @@ Camera.prototype.prepareStream = function (request, callback) {
 }
 
 Camera.prototype.handleStreamRequest = function (request) {
-console.log(request)
-
-  var sessionID = request['sessionID']
-  var requestType = request['type']
-  if (!sessionID) return
-  let sessionIdentifier = this.hap.uuid.unparse(sessionID)
-
-  if (requestType === 'start' && this.pendingSessions[sessionIdentifier]) {
-    var width = 1280
-    var height = 720
-    var fps = 30
-    var bitrate = 300
-
-    if (request['video']) {
-      width = request['video']['width']
-      height = request['video']['height']
-      fps = Math.min(fps, request['video']['fps']) // TODO define max fps
-      bitrate = request['video']['max_bit_rate']
-    }
-
-    this._v4l2CTLSetCTRL('video_bitrate', `${bitrate}000`)
-
-    let srtp = this.pendingSessions[sessionIdentifier]['video_srtp'].toString('base64')
-    let address = this.pendingSessions[sessionIdentifier]['address']
-    let port = this.pendingSessions[sessionIdentifier]['video_port']
-    let ssrc = this.pendingSessions[sessionIdentifier]['video_ssrc']
-
-    this.log(`Starting video stream (${width}x${height}, ${fps} fps, ${bitrate} kbps)`)
-	    let ffmpegCommand = `\
--f video4linux2 -input_format h264 -video_size ${width}x${height} -framerate ${fps} -i /dev/video0 \
--vcodec h264_omx -an -payload_type 99 -ssrc ${ssrc} -f rtp \
--srtp_out_suite AES_CM_128_HMAC_SHA1_80 -srtp_out_params ${srtp} \
-srtp://${address}:${port}?rtcpport=${port}&localrtcpport=${port}&pkt_size=1378`
-    if (this.debug) {
-      console.log('ffmpeg', ffmpegCommand)
-    }
-    let ffmpeg = spawn('ffmpeg', ffmpegCommand.split(' '), { env: process.env })
-    ffmpeg.stderr.on('data', data => {
-      if (this.debug) {
-        console.log(String(data))
-      }
-    })
-    ffmpeg.on('error', error => {
-      this.log('Failed to start video stream')
-      if (this.debug) {
-        console.log('Error:', error.message)
-      }
-    })
-    ffmpeg.on('close', code => {
-      if (!code || code === 255) {
-        this.log('Video stream stopped')
-      } else {
-        this.log(`ffmpeg exited with code ${code}`)
-      }
-    })
-    this.ongoingSessions[sessionIdentifier] = ffmpeg
-
-    delete this.pendingSessions[sessionIdentifier]
+  if (!request['sessionID']) {
+    return false
   }
-  if (requestType === 'stop' && this.ongoingSessions[sessionIdentifier]) {
-    this.ongoingSessions[sessionIdentifier].kill('SIGKILL')
-    delete this.ongoingSessions[sessionIdentifier]
+
+  switch (request['type']) {
+    case 'start':
+      this._handleStartStream(request)
+      break
+    case 'stop':
+      this._handleStopStream(request)
+      break
+    default:
+      return false
   }
 }
 
@@ -248,4 +199,76 @@ Camera.prototype._v4l2CTLSetCTRL = function (name, value) {
   if (this.debug) {
     v4l2ctl.stderr.on('data', function (data) { console.log(String(data)) })
   }
+
+}
+
+Camera.prototype._handleStartStream = function(request) {
+  const sessionIdentifier = this.hap.uuid.unparse(request['sessionID'])
+
+  if (!this.pendingSessions[sessionIdentifier]) {
+    return false
+  }
+
+  var width = 1280
+  var height = 720
+  var fps = 30
+  var bitrate = 300
+
+  if (request['video']) {
+    width = request['video']['width']
+    height = request['video']['height']
+    fps = Math.min(fps, request['video']['fps']) // TODO define max fps
+    bitrate = request['video']['max_bit_rate']
+  }
+
+  this._v4l2CTLSetCTRL('video_bitrate', `${bitrate}000`)
+
+  let srtp = this.pendingSessions[sessionIdentifier]['video_srtp'].toString('base64')
+  let address = this.pendingSessions[sessionIdentifier]['address']
+  let port = this.pendingSessions[sessionIdentifier]['video_port']
+  let ssrc = this.pendingSessions[sessionIdentifier]['video_ssrc']
+
+  this.log(`Starting video stream (${width}x${height}, ${fps} fps, ${bitrate} kbps)`)
+  let ffmpegCommand = `\
+-f video4linux2 -input_format h264 -video_size ${width}x${height} -framerate ${fps} -i /dev/video0 \
+-vcodec h264_omx -an -payload_type 99 -ssrc ${ssrc} -f rtp \
+-srtp_out_suite AES_CM_128_HMAC_SHA1_80 -srtp_out_params ${srtp} \
+srtp://${address}:${port}?rtcpport=${port}&localrtcpport=${port}&pkt_size=1378`
+  if (this.debug) {
+    console.log('ffmpeg', ffmpegCommand)
+  }
+  let ffmpeg = spawn('ffmpeg', ffmpegCommand.split(' '), { env: process.env })
+  ffmpeg.stderr.on('data', data => {
+    if (this.debug) {
+      console.log(String(data))
+    }
+  })
+  ffmpeg.on('error', error => {
+    this.log('Failed to start video stream')
+    if (this.debug) {
+      console.log('Error:', error.message)
+    }
+  })
+  ffmpeg.on('close', code => {
+    if (!code || code === 255) {
+      this.log('Video stream stopped')
+    } else {
+      this.log(`ffmpeg exited with code ${code}`)
+    }
+  })
+  this.ongoingSessions[sessionIdentifier] = ffmpeg
+
+  delete this.pendingSessions[sessionIdentifier]
+
+}
+
+Camera.prototype._handleStopStream = function(request) {
+  const sessionIdentifier = this.hap.uuid.unparse(request['sessionID'])
+
+  if (!this.ongoingSessions[sessionIdentifier]) {
+    return false
+  }
+
+  this.ongoingSessions[sessionIdentifier].kill('SIGKILL')
+  delete this.ongoingSessions[sessionIdentifier]
 }
