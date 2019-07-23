@@ -4,7 +4,7 @@ const CameraAccessory = require('./CameraAccessory')(hap, hap.Accessory, console
 const LockAccessory = require('./LockAccessory')(hap, hap.Accessory, console.log);
 
 let conf = {
-    username: 'EC:23:22:D3:CE:07',
+    username: 'EC:23:12:D3:CE:07',
     pincode: '031-45-150',
     debug: true
 };
@@ -21,7 +21,7 @@ bridge.addBridgedAccessory(new LockAccessory());
 bridge.publish({
   username: conf.username,
   pincode: conf.pincode,
-  category: hap.Accessory.Categories.CAMERA
+  category: hap.Accessory.Categories.BRIDGE
 }, true);
 
 console.log('Pincode: ' + conf.pincode);
