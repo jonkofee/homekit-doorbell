@@ -1,16 +1,15 @@
-'use strict'
-const packageJSON = require('./package.json')
-const CameraSource = require('./CameraSource')
+'use strict';
+const packageJSON = require('./package.json');
 
-module.exports = (hap, Accessory, log) => class CameraAccessory extends Accessory {
+module.exports = (hap, Accessory, log) => class LockAccessory extends Accessory {
   constructor () {
-    super('Lock', hap.uuid.generate('homebridge-camera-rpi:lock'))
+    super('Lock', hap.uuid.generate('homebridge-camera-rpi:lock'));
 
     this.getService(hap.Service.AccessoryInformation)
       .setCharacteristic(hap.Characteristic.Manufacturer, 'Raspberry Pi Foundation')
       .setCharacteristic(hap.Characteristic.Model, 'v2.1')
       .setCharacteristic(hap.Characteristic.SerialNumber, '42')
-      .setCharacteristic(hap.Characteristic.FirmwareRevision, packageJSON.version)
+      .setCharacteristic(hap.Characteristic.FirmwareRevision, packageJSON.version);
 
     var FAKE_LOCK = {
       locked: false,
@@ -25,7 +24,7 @@ module.exports = (hap, Accessory, log) => class CameraAccessory extends Accessor
       identify: function() {
         console.log("Identify the lock!");
       }
-    }
+    };
 
     this.addService(hap.Service.LockMechanism, "Fake Lock")
         .getCharacteristic(hap.Characteristic.LockTargetState)
@@ -48,7 +47,7 @@ module.exports = (hap, Accessory, log) => class CameraAccessory extends Accessor
                 .getService(hap.Service.LockMechanism)
                 .setCharacteristic(hap.Characteristic.LockCurrentState, hap.Characteristic.LockCurrentState.SECURED);
           }
-        })
+        });
 
     this
         .getService(hap.Service.LockMechanism)
@@ -72,7 +71,8 @@ module.exports = (hap, Accessory, log) => class CameraAccessory extends Accessor
         });
 
     this.on('identify', function (paired, callback) {
-        log('**identify**'); callback()
-    })
+        log('**identify**');
+        callback();
+    });
   }
 }

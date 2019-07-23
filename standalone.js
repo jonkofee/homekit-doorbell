@@ -1,7 +1,7 @@
-'use strict'
-const hap = require('hap-nodejs')
-const CameraAccessory = require('./CameraAccessory')(hap, hap.Accessory, console.log)
-const LockAccessory = require('./LockAccessory')(hap, hap.Accessory, console.log)
+'use strict';
+const hap = require('hap-nodejs');
+const CameraAccessory = require('./CameraAccessory')(hap, hap.Accessory, console.log);
+const LockAccessory = require('./LockAccessory')(hap, hap.Accessory, console.log);
 
 let conf = {
     username: 'EC:23:22:D3:CE:07',
@@ -9,19 +9,19 @@ let conf = {
     debug: true
 };
 
-console.log('HAP-NodeJS starting...')
+console.log('HAP-NodeJS starting...');
 
-hap.init()
+hap.init();
 
 const bridge = new hap.Bridge('Node Bridge', hap.uuid.generate("Node Bridge"));
 
-bridge.addBridgedAccessory(new CameraAccessory())
-bridge.addBridgedAccessory(new LockAccessory())
+bridge.addBridgedAccessory(new CameraAccessory());
+bridge.addBridgedAccessory(new LockAccessory());
 
 bridge.publish({
   username: conf.username,
   pincode: conf.pincode,
   category: hap.Accessory.Categories.CAMERA
-}, true)
+}, true);
 
-console.log('Pincode: ' + conf.pincode)
+console.log('Pincode: ' + conf.pincode);
