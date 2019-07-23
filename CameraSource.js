@@ -1,12 +1,13 @@
 'use strict';
 
-var ip = require('ip');
-var spawn = require('child_process').spawn;
-var crypto = require('crypto');
+const ip = require('ip');
+const spawn = require('child_process').spawn;
+const crypto = require('crypto');
+const hap = require('hap-nodejs');
 
 module.exports = Camera;
 
-function Camera (hap, conf, log) {
+function Camera () {
   const options = {
     proxy: false, // Requires RTP/RTCP MUX Proxy
     disable_audio_proxy: false, // If proxy = true, you can opt out audio proxy via this
@@ -45,18 +46,12 @@ function Camera (hap, conf, log) {
     }
   };
 
-  this.hap = hap;
-  this.conf = conf;
-  this.log = log;
   this.services = [];
   this.streamControllers = [];
-  this.debug = conf.debug;
+  this.debug = true;
   this.pendingSessions = {};
   this.ongoingSessions = {};
 
-  this._v4l2CTLSetCTRL('rotate', this.conf.rotate || 0);
-  this._v4l2CTLSetCTRL('vertical_flip', this.conf.verticalFlip ? 1 : 0);
-  this._v4l2CTLSetCTRL('horizontal_flip', this.conf.horizontalFlip ? 1 : 0);
   this.createCameraControlService();
   this._createStreamControllers(2, options);
 }
@@ -71,23 +66,23 @@ Camera.prototype.handleSnapshotRequest = function (request, callback) {
   }
 
   let ffmpeg = spawn('ffmpeg', ffmpegCommand.split(' '), { env: process.env });
-  var imageBuffer = Buffer.alloc(0);
+  let imageBuffer = Buffer.alloc(0);
   ffmpeg.stdout.on('data', function (data) { imageBuffer = Buffer.concat([imageBuffer, data]) });
   if (this.debug) {
     ffmpeg.stderr.on('data', function (data) { console.log(String(data)) });
   }
   ffmpeg.on('error', error => {
-    this.log('Failed to take a snapshot');
+    console.log('Failed to take a snapshot');
     if (this.debug) {
       console.log('Error:', error.message);
     }
   });
   ffmpeg.on('close', code => {
     if (!code || code === 255) {
-      this.log(`Took snapshot at ${request.width}x${request.height}`);
+      console.log(`Took snapshot at ${request.width}x${request.height}`);
       callback(null, imageBuffer);
     } else {
-      this.log(`ffmpeg exited with code ${code}`);
+      console.log(`ffmpeg exited with code ${code}`);
     }
   });
 };
@@ -143,7 +138,7 @@ Camera.prototype.prepareStream = function (request, callback) {
     sessionInfo['audio_ssrc'] = response.audio.ssrc;
   }
 
-  this.pendingSessions[this.hap.uuid.unparse(request['sessionID'])] = sessionInfo;
+  this.pendingSessions[hap.uuid.unparse(request['sessionID'])] = sessionInfo;
 
   callback(response);
 }
@@ -166,7 +161,7 @@ Camera.prototype.handleStreamRequest = function (request) {
 };
 
 Camera.prototype.createCameraControlService = function () {
-  var controlService = new this.hap.Service.CameraControl();
+  let controlService = new hap.Service.CameraControl();
 
   // Developer can add control characteristics like rotation, night vision at here.
 
@@ -178,13 +173,13 @@ Camera.prototype.createCameraControlService = function () {
 Camera.prototype._createStreamControllers = function (maxStreams, options) {
   let self = this;
 
-  for (var i = 0; i < maxStreams; i++) {
-    var streamController = new this.hap.StreamController(i, options, self);
+  for (let i = 0; i < maxStreams; i++) {
+    let streamController = new hap.StreamController(i, options, self);
 
     self.services.push(streamController.service);
     self.streamControllers.push(streamController);
   }
-}
+};
 
 Camera.prototype._v4l2CTLSetCTRL = function (name, value) {
   let v4l2ctlCommand = `--set-ctrl ${name}=${value}`;
@@ -193,19 +188,19 @@ Camera.prototype._v4l2CTLSetCTRL = function (name, value) {
   }
   let v4l2ctl = spawn('v4l2-ctl', v4l2ctlCommand.split(' '), { env: process.env });
   v4l2ctl.on('error', err => {
-    this.log(`Failed to set '${name}' to '${value}'`);
+    console.log(`Failed to set '${name}' to '${value}'`);
     if (this.debug) {
       console.log('Error:', err.message);
     }
-  })
+  });
   if (this.debug) {
     v4l2ctl.stderr.on('data', function (data) { console.log(String(data)) });
   }
 
-}
+};
 
 Camera.prototype._handleStartStream = function(request) {
-  const sessionIdentifier = this.hap.uuid.unparse(request['sessionID']);
+  const sessionIdentifier = hap.uuid.unparse(request['sessionID']);
 
   if (!this.pendingSessions[sessionIdentifier]) {
     return false;
@@ -222,7 +217,7 @@ Camera.prototype._handleStartStream = function(request) {
 
   this._v4l2CTLSetCTRL('video_bitrate', `${bitrate}000`);
 
-  this.log(`Starting video stream (${width}x${height}, ${fps} fps, ${bitrate} kbps)`);
+  console.log(`Starting video stream (${width}x${height}, ${fps} fps, ${bitrate} kbps)`);
 
   let ffmpegCommand = `-f video4linux2 -input_format h264 -video_size ${width}x${height} -framerate ${fps} -i /dev/video0 -vcodec h264_omx -an -payload_type 99 -ssrc ${ssrc} -f rtp -srtp_out_suite AES_CM_128_HMAC_SHA1_80 -srtp_out_params ${srtp} srtp://${address}:${port}?rtcpport=${port}&localrtcpport=${port}&pkt_size=1378`;
 
@@ -239,7 +234,7 @@ Camera.prototype._handleStartStream = function(request) {
   });
 
   ffmpeg.on('error', error => {
-    this.log('Failed to start video stream');
+    console.log('Failed to start video stream');
     if (this.debug) {
       console.log('Error:', error.message);
     }
@@ -247,9 +242,9 @@ Camera.prototype._handleStartStream = function(request) {
 
   ffmpeg.on('close', code => {
     if (!code || code === 255) {
-      this.log('Video stream stopped');
+      console.log('Video stream stopped');
     } else {
-      this.log(`ffmpeg exited with code ${code}`);
+      console.log(`ffmpeg exited with code ${code}`);
     }
   });
 
@@ -259,7 +254,7 @@ Camera.prototype._handleStartStream = function(request) {
 }
 
 Camera.prototype._handleStopStream = function(request) {
-  const sessionIdentifier = this.hap.uuid.unparse(request['sessionID']);
+  const sessionIdentifier = hap.uuid.unparse(request['sessionID']);
 
   if (!this.ongoingSessions[sessionIdentifier]) {
     return false;

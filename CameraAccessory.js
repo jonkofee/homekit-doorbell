@@ -1,25 +1,21 @@
 'use strict';
-const packageJSON = require('./package.json');
+const hap = require('hap-nodejs');
+const Accessory = hap.Accessory;
+const Service = hap.Service;
+
 const CameraSource = require('./CameraSource');
 
-module.exports = (hap, Accessory, log) => class CameraAccessory extends Accessory {
+module.exports = class CameraAccessory extends Accessory {
   constructor () {
-    super('Camera', hap.uuid.generate('homebridge-camera-rpi:outdoor'));
+    super('Camera', hap.uuid.generate('homebridge-camera-rpi:camera'));
 
-    this.getService(hap.Service.AccessoryInformation)
-      .setCharacteristic(hap.Characteristic.Manufacturer, 'Raspberry Pi Foundation')
-      .setCharacteristic(hap.Characteristic.Model, 'v2.1')
-      .setCharacteristic(hap.Characteristic.SerialNumber, '42')
-      .setCharacteristic(hap.Characteristic.FirmwareRevision, packageJSON.version);
+    this.addService(new Service.Speaker("Speaker"));
 
-    this.addService(new hap.Service.Speaker("Speaker"));
-
-    this.on('identify', function (paired, callback) {
-        log('**identify**'); callback()
+    this.on('identify', (paired, callback) => {
+        console.log('Idetify camera');
+        callback();
     });
 
-    const cameraSource = new CameraSource(hap, {}, log);
-
-    this.configureCameraSource(cameraSource);
+    this.configureCameraSource(new CameraSource());
   }
 };
