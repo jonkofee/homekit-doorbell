@@ -2,7 +2,7 @@
 const hap = require('hap-nodejs');
 const Bridge = hap.Bridge;
 const Accessory = hap.Accessory;
-const CameraAccessory = require('./CameraAccessory');
+const CameraAccessory = require('./Accessories/Camera');
 
 hap.init();
 
